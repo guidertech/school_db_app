@@ -103,7 +103,7 @@ export default function AdminDashboard() {
   // --- Handlers for Presentation ---
   const handleOpenPresModal = (pres?: Presentation) => {
     if (pres) {
-      setEditingPresId(pres.id || null);
+      setEditingPresId(pres.topic_id || null);
       setPresFormData({
         topic_name: pres.topic_name,
         topic_category: pres.topic_category,
@@ -142,15 +142,29 @@ export default function AdminDashboard() {
 
     if (supabase) {
       if (editingPresId) {
-        await supabase.from("presentation").update(newPresItem).eq("id", editingPresId);
+        const { error } = await supabase
+          .from("presentation")
+          .update(newPresItem)
+          .eq("topic_id", editingPresId);
+
+        if (error) {
+          console.error("Supabase update error:", error);
+          alert(`Failed to update presentation in Database: ${error.message}`);
+          return;
+        }
       } else {
-        await supabase.from("presentation").insert([newPresItem]);
+        const { error } = await supabase.from("presentation").insert([newPresItem]);
+        if (error) {
+          console.error("Supabase insert error:", error);
+          alert(`Failed to create presentation in Database: ${error.message}`);
+          return;
+        }
       }
     }
 
     if (editingPresId) {
       setPresentations((prev) =>
-        prev.map((p) => (p.id === editingPresId ? { ...p, ...newPresItem } : p))
+        prev.map((p) => (p.topic_id === editingPresId ? { ...p, ...newPresItem } : p))
       );
       showToast("Presentation updated!");
     } else {
@@ -163,18 +177,25 @@ export default function AdminDashboard() {
     setIsPresModalOpen(false);
   };
 
-  const handleDeletePresentation = async (id: number, topic_id: number) => {
-    if (!confirm("Are you sure you want to delete this presentation and its slides?")) return;
+  const handleDeletePresentation = async (topic_id: number) => {
+    if (!confirm(`Are you sure you want to delete presentation (topic_id: #${topic_id}) and its slides?`)) return;
 
     if (supabase) {
-      await supabase.from("presentation").delete().eq("id", id);
-      await supabase.from("slides").delete().eq("topic_id", topic_id);
+      const { error: presErr } = await supabase.from("presentation").delete().eq("topic_id", topic_id);
+      const { error: slideErr } = await supabase.from("slides").delete().eq("topic_id", topic_id);
+
+      if (presErr || slideErr) {
+        const errMsg = presErr?.message || slideErr?.message;
+        console.error("Supabase delete error:", presErr || slideErr);
+        alert(`Failed to delete presentation from Database: ${errMsg}`);
+        return;
+      }
     }
 
-    setPresentations((prev) => prev.filter((p) => p.id !== id));
+    setPresentations((prev) => prev.filter((p) => p.topic_id !== topic_id));
     setSlides((prev) => prev.filter((s) => s.topic_id !== topic_id));
     if (selectedTopicId === topic_id) {
-      const remaining = presentations.filter((p) => p.id !== id);
+      const remaining = presentations.filter((p) => p.topic_id !== topic_id);
       setSelectedTopicId(remaining.length > 0 ? remaining[0].topic_id : null);
     }
     showToast("Presentation deleted.");
@@ -222,9 +243,19 @@ export default function AdminDashboard() {
 
     if (supabase) {
       if (editingSlideId) {
-        await supabase.from("slides").update(newSlideItem).eq("id", editingSlideId);
+        const { error } = await supabase.from("slides").update(newSlideItem).eq("id", editingSlideId);
+        if (error) {
+          console.error("Supabase slide update error:", error);
+          alert(`Failed to update slide in Database: ${error.message}`);
+          return;
+        }
       } else {
-        await supabase.from("slides").insert([newSlideItem]);
+        const { error } = await supabase.from("slides").insert([newSlideItem]);
+        if (error) {
+          console.error("Supabase slide insert error:", error);
+          alert(`Failed to add slide in Database: ${error.message}`);
+          return;
+        }
       }
     }
 
@@ -246,7 +277,12 @@ export default function AdminDashboard() {
     if (!confirm("Are you sure you want to delete this slide?")) return;
 
     if (supabase) {
-      await supabase.from("slides").delete().eq("id", id);
+      const { error } = await supabase.from("slides").delete().eq("id", id);
+      if (error) {
+        console.error("Supabase slide delete error:", error);
+        alert(`Failed to delete slide from Database: ${error.message}`);
+        return;
+      }
     }
 
     setSlides((prev) => prev.filter((s) => s.id !== id));
@@ -439,7 +475,7 @@ export default function AdminDashboard() {
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => handleDeletePresentation(pres.id!, pres.topic_id)}
+                            onClick={() => handleDeletePresentation(pres.topic_id)}
                             className="p-1 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition"
                             title="Delete"
                           >
