@@ -188,7 +188,7 @@ export default function AdminDashboard() {
 
       setPresFormData({
         topic_name: "",
-        topic_category: "General",
+        topic_category: "Foundational",
         link: "",
         topic_id: nextTopicId,
         tagsInput: ""
@@ -825,14 +825,16 @@ export default function AdminDashboard() {
                   <label className="block text-xs font-medium text-slate-600 mb-1">
                     Category <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <select
                     required
-                    placeholder="Science"
                     value={presFormData.topic_category}
                     onChange={(e) => setPresFormData({ ...presFormData, topic_category: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-blue-500"
-                  />
+                  >
+                    <option value="Foundational">Foundational</option>
+                    <option value="Preparatory">Preparatory</option>
+                    <option value="Middle">Middle</option>
+                  </select>
                 </div>
 
                 <div>
