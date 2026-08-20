@@ -178,11 +178,19 @@ export default function AdminDashboard() {
       });
     } else {
       setEditingPresId(null);
+      // Calculate next auto-increment topic_id (max numeric topic_id + 1)
+      const maxTopicId = presentations.reduce((max, p) => {
+        const idNum = Number(p.topic_id);
+        return !isNaN(idNum) && idNum > max ? idNum : max;
+      }, 1000); // Defaults to starting from 1001 if no presentation exists or max is lower than 1000
+
+      const nextTopicId = (maxTopicId + 1).toString();
+
       setPresFormData({
         topic_name: "",
         topic_category: "General",
         link: "",
-        topic_id: (Math.floor(Math.random() * 900) + 100).toString(),
+        topic_id: nextTopicId,
         tagsInput: ""
       });
     }
