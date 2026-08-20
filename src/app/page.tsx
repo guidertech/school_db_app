@@ -15,12 +15,77 @@ import {
   BookOpen,
   CheckCircle2,
   X,
-  FileText
+  FileText,
+  Lock,
+  LogIn,
+  LogOut,
+  ShieldCheck
 } from "lucide-react";
 import { Presentation, Slide } from "@/types/schema";
 import { supabase } from "@/lib/supabase";
 
 export default function AdminDashboard() {
+  // Auth state
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [emailInput, setEmailInput] = useState("");
+  const [passwordInput, setPasswordInput] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  useEffect(() => {
+    // Check if session exists in localStorage
+    const authSession = localStorage.getItem("admin_authenticated");
+    if (authSession === "true") {
+      setIsAuthenticated(true);
+    }
+  }, []);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError("");
+    setIsLoggingIn(true);
+
+    try {
+      if (!supabase) {
+        setLoginError("Database connection not available.");
+        setIsLoggingIn(false);
+        return;
+      }
+
+      const inputVal = emailInput.trim();
+      const passVal = passwordInput.trim();
+
+      // Check admin_auth table in Supabase
+      const { data, error } = await supabase
+        .from("admin_auth")
+        .select("*")
+        .or(`email.eq.${inputVal},username.eq.${inputVal}`)
+        .eq("password", passVal);
+
+      if (error) {
+        console.error("Supabase admin_auth error:", error);
+        setLoginError(`Database Error: ${error.message}`);
+      } else if (data && data.length > 0) {
+        localStorage.setItem("admin_authenticated", "true");
+        setIsAuthenticated(true);
+        showToast("Welcome to School Admin Portal!");
+      } else {
+        setLoginError("Invalid username/email or password.");
+      }
+    } catch (err: any) {
+      console.error("Login catch error:", err);
+      setLoginError("Failed to authenticate. Please try again.");
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("admin_authenticated");
+    setIsAuthenticated(false);
+    showToast("Logged out successfully.");
+  };
+
   const [activeTab, setActiveTab] = useState<"presentations" | "slides">("presentations");
   const [presentations, setPresentations] = useState<Presentation[]>([]);
   const [slides, setSlides] = useState<Slide[]>([]);
@@ -289,6 +354,92 @@ export default function AdminDashboard() {
     showToast("Slide removed.");
   };
 
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 relative overflow-hidden font-sans">
+        {/* Background decorative elements */}
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none"></div>
+
+        {/* Toast Notification */}
+        {toastMessage && (
+          <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 bg-slate-800 text-white px-4 py-3 rounded-xl shadow-lg border border-slate-700">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span className="font-medium text-sm">{toastMessage}</span>
+          </div>
+        )}
+
+        {/* Login Box */}
+        <div className="w-full max-w-md bg-slate-800/90 backdrop-blur-xl border border-slate-700/80 rounded-2xl p-8 shadow-2xl relative z-10 text-white">
+          <div className="text-center mb-8">
+            <div className="w-14 h-14 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20 border border-white/10">
+              <BookOpen className="w-7 h-7 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-white">School Admin Portal</h1>
+            <p className="text-sm text-slate-400 mt-1">Sign in to manage presentations and slides</p>
+          </div>
+
+          {loginError && (
+            <div className="mb-5 bg-red-500/10 border border-red-500/30 text-red-400 text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2">
+              <X className="w-4 h-4 text-red-400 flex-shrink-0" />
+              <span>{loginError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                Email / Username
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  placeholder="admin@school.com"
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  className="w-full bg-slate-900/80 border border-slate-700 text-slate-100 text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition placeholder:text-slate-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  className="w-full bg-slate-900/80 border border-slate-700 text-slate-100 text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition placeholder:text-slate-500"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoggingIn}
+              className="w-full mt-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium text-sm py-2.5 rounded-xl transition shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>{isLoggingIn ? "Signing in..." : "Sign In"}</span>
+            </button>
+          </form>
+
+          <div className="mt-6 pt-5 border-t border-slate-700/60 text-center">
+            <p className="text-xs text-slate-400 flex items-center justify-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+              <span>Protected Content Management System</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-16">
       {/* Toast Notification */}
@@ -312,13 +463,24 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <button
-            onClick={() => handleOpenPresModal()}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Presentation</span>
-          </button>
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => handleOpenPresModal()}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Presentation</span>
+            </button>
+
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium px-3 py-2 rounded-lg transition border border-slate-200"
+              title="Logout"
+            >
+              <LogOut className="w-4 h-4 text-slate-500" />
+              <span className="hidden sm:inline">Logout</span>
+            </button>
+          </div>
         </div>
       </header>
 
