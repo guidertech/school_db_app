@@ -55,11 +55,11 @@ export default function AdminDashboard() {
       const inputVal = emailInput.trim();
       const passVal = passwordInput.trim();
 
-      // Check admin_auth table in Supabase
+      // Check admin_auth table in Supabase (columns: id, created_at, email, password)
       const { data, error } = await supabase
         .from("admin_auth")
         .select("*")
-        .or(`email.eq.${inputVal},username.eq.${inputVal}`)
+        .eq("email", inputVal)
         .eq("password", passVal);
 
       if (error) {
